@@ -39,4 +39,9 @@ let vocals = response[.vocals]
 let instrumental = response[.instrumental]
 ```
 
+## Consuming it
+
+Public + version-tagged on github.com/xocialize. Add by tagged URL:
+`.package(url: "https://github.com/xocialize/mlx-demucs-swift", from: "0.1.0")`, then import `MLXDemucs` (the conformant `audioSeparation` package). Builds standalone — its engine contract (`MLXToolKit`) and model-core dependencies are tagged-URL net deps, no local checkouts.
+
 Requirements: macOS 26+ (Apple Silicon, Metal GPU). Port code MIT; weights MIT (Meta Demucs).
