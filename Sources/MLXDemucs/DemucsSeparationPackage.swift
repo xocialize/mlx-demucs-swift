@@ -26,9 +26,22 @@ public final class DemucsSeparationPackage: ModelPackage {
             provenance: Provenance(sourceRepo: "mlx-community/htdemucs-ft-vocals-mlx",
                                    revision: "main", tier: 1),
             requirements: RequirementsManifest(
-                // ~26M param backbone (84 MB fp16) but the 30-second chunk through the spectral +
-                // temporal branches and cross-domain transformer dominates the working set.
-                footprints: [QuantFootprint(quant: .fp16, residentBytes: 2_500_000_000)],
+                // Split footprint (contract 1.14). ~26M-param backbone, 84 MB fp16 weights on disk
+                // (mlx-community/htdemucs-ft-vocals-mlx: htdemucs_ft_vocals.safetensors) → ~0.3 GB
+                // resident floor with framework/mmap overhead. The transient is *chunk-bounded*: HTDemucs
+                // processes audio in fixed 30-second chunks (SwiftDemucs default `chunkDurationSeconds`,
+                // 0.5 s overlap; model segment 7.8 s) through the spectral + temporal branches and the
+                // cross-domain transformer, so the activation tracks the chunk working set, not clip length
+                // (the Real-ESRGAN tile lesson). ~2.2 GB peak at the 30 s chunk.
+                //
+                // ⚠️ peakActivationBytes is a SMOKE ESTIMATE (derived from the prior flat 2.5 GB minus the
+                // measured weight floor, scaled to the 30 s chunk envelope); in-app phys_footprint reads
+                // ~2.5–2.9× higher — IN-APP PHYS RE-BASELINE PENDING (the admission basis, R-MEM-1).
+                footprints: [
+                    QuantFootprint(quant: .fp16,
+                                   residentBytes: 300_000_000,
+                                   peakActivationBytes: 2_200_000_000),
+                ],
                 requiredBackends: [.metalGPU],
                 os: OSRequirement(minMacOS: SemanticVersion(major: 26, minor: 0, patch: 0)),
                 chipFloor: nil
@@ -63,6 +76,10 @@ public final class DemucsSeparationPackage: ModelPackage {
 
     public func unload() async {
         separator = nil
+        // Drop the model's weight/activation buffers from MLX's pool too — niling the ref alone
+        // leaves them cached, so phys_footprint doesn't fall and engine.evict / R-MEM-1 can't
+        // reclaim (RSS then grows monotonically across model switches). Contract 1.14 requirement.
+        MLX.Memory.clearCache()
     }
 
     public func run(_ request: any CapabilityRequest) async throws -> any CapabilityResponse {
