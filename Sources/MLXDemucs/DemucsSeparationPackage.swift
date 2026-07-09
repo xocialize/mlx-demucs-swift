@@ -99,12 +99,16 @@ public final class DemucsSeparationPackage: ModelPackage {
     }
 
     public func run(_ request: any CapabilityRequest) async throws -> any CapabilityResponse {
+        // CAN-1: the entry checkpoint is the FIRST act of run() — before notLoaded validation
+        // (engine ≥ 0.27.0). Mid-run cadence: the SwiftDemucs core checks cancellation once per
+        // 30 s chunk (checkCancelled() in separateChunked) and rethrows CancellationError
+        // unchanged through separate(samples:).
+        try Task.checkCancellation()
         guard let separator else { throw PackageError.notLoaded }
         guard request.capability == .audioSeparation,
               let req = request as? AudioSeparationRequest else {
             throw PackageError.unsupportedCapability(request.capability)
         }
-        try Task.checkCancellation()
 
         // Decode the mixture to [1, 2, N] @ 44.1 kHz stereo (AudioIO resamples arbitrary input).
         let mixture = try Self.decodeMixture(req.audio)

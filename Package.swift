@@ -15,9 +15,10 @@ let package = Package(
         .library(name: "MLXDemucs", targets: ["MLXDemucs"]),
     ],
     dependencies: [
-        // Bumped to 0.23.0 for the WeightSourcing auto-materialization contract (types ≥0.19.0).
-        .package(url: "https://github.com/xocialize/mlx-engine-swift", from: "0.23.0"),
-        .package(url: "https://github.com/xocialize/demucs-mlx-swift.git", from: "0.1.0"),
+        // Bumped to 0.27.0 for the CAN cancellation-conformance gate (CancellationConformance).
+        .package(url: "https://github.com/xocialize/mlx-engine-swift", from: "0.27.0"),
+        // ≥0.1.1: per-chunk cooperative cancellation (Task lane in checkCancelled — CAN-3 cadence).
+        .package(url: "https://github.com/xocialize/demucs-mlx-swift.git", from: "0.1.1"),
         .package(url: "https://github.com/ml-explore/mlx-swift.git", from: "0.30.0"),
         // Native downloader for WeightSourcing auto-materialization.
         .package(url: "https://github.com/huggingface/swift-huggingface.git", from: "0.9.0"),
