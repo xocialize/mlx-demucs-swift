@@ -15,10 +15,12 @@ let package = Package(
         .library(name: "MLXDemucs", targets: ["MLXDemucs"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/xocialize/mlx-engine-swift", from: "0.3.0"),
+        // Bumped to 0.23.0 for the WeightSourcing auto-materialization contract (types ≥0.19.0).
+        .package(url: "https://github.com/xocialize/mlx-engine-swift", from: "0.23.0"),
         .package(url: "https://github.com/xocialize/demucs-mlx-swift.git", from: "0.1.0"),
         .package(url: "https://github.com/ml-explore/mlx-swift.git", from: "0.30.0"),
-        .package(url: "https://github.com/huggingface/swift-transformers", from: "1.1.6"),
+        // Native downloader for WeightSourcing auto-materialization.
+        .package(url: "https://github.com/huggingface/swift-huggingface.git", from: "0.9.0"),
     ],
     targets: [
         .target(
@@ -28,7 +30,7 @@ let package = Package(
                 // Package identity derives from the repo URL's last path component.
                 .product(name: "SwiftDemucs", package: "demucs-mlx-swift"),
                 .product(name: "MLX", package: "mlx-swift"),
-                .product(name: "Hub", package: "swift-transformers"),
+                .product(name: "HuggingFace", package: "swift-huggingface"),
             ],
             // SwiftDemucs' `VocalSeparator` (MLX) isn't Sendable-audited, so awaiting its nonisolated
             // init back into the `@InferenceActor` trips strict region-isolation. The engine serializes
@@ -42,6 +44,8 @@ let package = Package(
                 "MLXDemucs",
                 .product(name: "MLXToolKit", package: "mlx-engine-swift"),
                 .product(name: "MLXServeCore", package: "mlx-engine-swift"),
+                // The offline MAT-1..5 materialization gate.
+                .product(name: "MLXServeConformance", package: "mlx-engine-swift"),
             ]
         ),
     ]

@@ -1,8 +1,14 @@
 import Foundation
 import MLXToolKit
 import MLX
-import Hub
 import SwiftDemucs
+
+/// Errors specific to the Demucs package boundary.
+public enum DemucsError: Error, Equatable {
+    /// Weight sources are missing and there is no store root (or resolved directory) to
+    /// materialize into.
+    case missingWeights(String)
+}
 
 /// An MLXEngine `audioSeparation` package over **HTDemucs v4** — splits a music mixture into
 /// `vocals` + `instrumental` at 44.1 kHz. A thin conformance wrapper over the standalone
@@ -65,12 +71,22 @@ public final class DemucsSeparationPackage: ModelPackage {
 
     public func load() async throws {
         guard separator == nil else { return }
-        // Download (or reuse the cached) HF snapshot, then build the separator (which loads
-        // htdemucs_ft_vocals.safetensors from the snapshot dir). Point the Hub download base at the
-        // engine's model-store root when set (the caller holds security-scoped access).
-        let hub = configuration.modelsRootDirectory.map { HubApi(downloadBase: $0) } ?? HubApi()
-        let dir = try await hub.snapshot(from: Hub.Repo(id: configuration.repo),
-                                         matching: ["htdemucs_ft_vocals.safetensors"])
+        // Auto-materialize the missing checkpoint into the engine store (dir-less configs only;
+        // explicit directories never touch the network), forwarding progress via
+        // WeightDownloadProgress so the engine's PreparationMonitor surfaces `.downloading`.
+        let storeRoot = configuration.modelsRootDirectory
+        let missing = configuration.missingWeightSources(storeRoot: storeRoot)
+        if !missing.isEmpty {
+            guard let storeRoot else {
+                throw DemucsError.missingWeights(
+                    "no models root set and sources missing: \(missing.map(\.role).joined(separator: ", "))")
+            }
+            try await WeightMaterializer.materialize(missing, into: storeRoot)
+        }
+        try Task.checkCancellation()
+        guard let dir = configuration.resolved(storeRoot: storeRoot).modelDirectory else {
+            throw DemucsError.missingWeights("unresolved weights directory (no store root)")
+        }
         separator = try await VocalSeparator(weightsDirectory: dir)
     }
 
