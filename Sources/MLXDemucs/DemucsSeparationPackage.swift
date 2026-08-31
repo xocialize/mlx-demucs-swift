@@ -40,13 +40,16 @@ public final class DemucsSeparationPackage: ModelPackage {
                 // cross-domain transformer, so the activation tracks the chunk working set, not clip length
                 // (the Real-ESRGAN tile lesson). ~2.2 GB peak at the 30 s chunk.
                 //
-                // ⚠️ peakActivationBytes is a SMOKE ESTIMATE (derived from the prior flat 2.5 GB minus the
-                // measured weight floor, scaled to the 30 s chunk envelope); in-app phys_footprint reads
-                // ~2.5–2.9× higher — IN-APP PHYS RE-BASELINE PENDING (the admission basis, R-MEM-1).
+                // PHYS RE-BASELINED 2026-08-31 (AB-T-0107): direct-load harness, task_vm_info
+                // phys_footprint sampled at 50 ms through a 35 s separation (full 30 s chunk
+                // envelope + spill), two runs. Post-load floor 0.20 GB; held between runs
+                // (weights + MLX cache) 0.84 GB; in-run peak 6.98–7.54 GB — the old 2.5 GB
+                // smoke envelope really did read ~3× low. resident = measured held;
+                // peakActivation = peak − held, rounded up to cover both runs.
                 footprints: [
                     QuantFootprint(quant: .fp16,
-                                   residentBytes: 300_000_000,
-                                   peakActivationBytes: 2_200_000_000),
+                                   residentBytes: 900_000_000,
+                                   peakActivationBytes: 6_700_000_000),
                 ],
                 requiredBackends: [.metalGPU],
                 os: OSRequirement(minMacOS: SemanticVersion(major: 26, minor: 0, patch: 0)),
